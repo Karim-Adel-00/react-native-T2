@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Button, FlatList, TouchableOpacity, Divider } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, Button, FlatList, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 export default function App() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState('All');
+
+  // ✅ تحميل البيانات من التخزين عند بداية التطبيق
+  useEffect(() => {
+    const loadTodos = async () => {
+      const storedTodos = await AsyncStorage.getItem('todos');
+      if (storedTodos) {
+        setTodos(JSON.parse(storedTodos));
+      }
+    };
+    loadTodos();
+  }, []);
+
+  // ✅ حفظ التودوز تلقائيًا عند التغيير
+  useEffect(() => {
+    AsyncStorage.setItem('todos', JSON.stringify(todos));
+  }, [todos]);
 
   const addTodo = () => {
     if (title.trim()) {
@@ -21,9 +39,17 @@ export default function App() {
   };
 
   const toggleTodo = (id) => {
-    setTodos(todos.map(todo => 
-      todo.id === id ? {...todo, status: todo.status === 'active' ? 'done' : 'active'} : todo
+    setTodos(todos.map(todo =>
+      todo.id === id ? { ...todo, status: todo.status === 'active' ? 'done' : 'active' } : todo
     ));
+  };
+
+  const deleteTodo = (id) => {
+    setTodos(todos.filter(todo => todo.id !== id));
+  };
+
+  const clearDoneTodos = () => {
+    setTodos(todos.filter(todo => todo.status !== 'done'));
   };
 
   const filteredTodos = todos.filter(todo => {
@@ -34,8 +60,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>TODO APP</Text>
-      
-      {/* Input Fields */}
+
       <TextInput
         style={styles.input}
         placeholder="Todo Title"
@@ -48,12 +73,12 @@ export default function App() {
         value={description}
         onChangeText={setDescription}
       />
-      
+
       <Button title="Add Todo" onPress={addTodo} />
-      
+
       <View style={styles.divider} />
-      
-      {/* Filter Buttons */}
+
+      {/* فلاتر الحالة */}
       <View style={styles.filterContainer}>
         {['All', 'Active', 'Done'].map((item) => (
           <TouchableOpacity
@@ -65,17 +90,29 @@ export default function App() {
           </TouchableOpacity>
         ))}
       </View>
-      
-      {/* Todo List */}
+
+      {/* زر حذف المهام المنتهية */}
+      <Button
+        title="Clear Done Todos"
+        color="#b00"
+        onPress={clearDoneTodos}
+      />
+
+      {/* قائمة المهام */}
       <FlatList
         data={filteredTodos}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.todoItem, item.status === 'done' && styles.completedTodo]}
             onPress={() => toggleTodo(item.id)}
           >
-            <Text style={styles.todoTitle}>{item.title}</Text>
+            <View style={styles.todoHeader}>
+              <Text style={styles.todoTitle}>{item.title}</Text>
+              <TouchableOpacity onPress={() => deleteTodo(item.id)}>
+                <Icon name="delete" size={20} color="red" />
+              </TouchableOpacity>
+            </View>
             <Text>{item.description}</Text>
             <Text>Status: {item.status}</Text>
           </TouchableOpacity>
@@ -92,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   header: {
-    marginTop:50,
+    marginTop: 50,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
@@ -100,27 +137,28 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#aaa',
     padding: 10,
     marginBottom: 10,
     borderRadius: 5,
+    backgroundColor: '#fff',
   },
   divider: {
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#aaa',
     borderBottomWidth: 1,
     marginVertical: 20,
   },
   filterContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   filterButton: {
     padding: 10,
     borderRadius: 5,
   },
   selectedFilter: {
-    backgroundColor: '#ddd',
+    backgroundColor: '#bbb',
   },
   todoItem: {
     padding: 15,
@@ -128,6 +166,12 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     marginBottom: 10,
     borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+  todoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   todoTitle: {
     fontWeight: 'bold',
